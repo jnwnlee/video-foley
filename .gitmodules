@@ -1,0 +1,3 @@
+[submodule "RMS_ControlNet_Inference"]
+	path = RMS_ControlNet_Inference
+	url = https://github.com/jakeoneijk/RMS_ControlNet_Inference
