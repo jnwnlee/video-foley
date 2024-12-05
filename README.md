@@ -39,19 +39,22 @@ Keywords: Video-to-Audio Generation, Controllable Audio Generation, Multimodal D
 ### (TL;DR) Inference with your own video
 To make an end-to-end inference with your own video without processing the whole dataset, run `infer_by_video.py`.
 This script executes preprocessing, video2rms inference, and rms2sound inference.
+Each video should be at least 10 seconds long.
 
 (text prompt)
 ```bash
 python infer_by_video.py --video_dir ./dir/to/your/videos --prompt_type "text" \
    --prompt "A person hit metal with a wooden stick." "A person hit cup with a wooden stick." ... \ 
-   --epoch 500 --video2rms_ckpt_dir ./dir/to/video2rms/ckpt --rms2sound_ckpt_dir ./dir/to/rms2sound/ckpt --output_dir ./output_dir
+   --epoch 500 --video2rms_ckpt_dir ./dir/to/video2rms/ckpt --rms2sound_ckpt_dir ./dir/to/rms2sound/ckpt \
+   --output_dir ./output_dir
 ```
 
 (audio prompt)
 ```bash
 python infer_by_video.py --video_dir ./dir_to_your_videos --prompt_type "audio" \
    --prompt ./path/to/audio_1.wav ./path/to/audio_2.wav ... \
-   --epoch 500 --video2rms_ckpt_dir ./dir/to/video2rms/ckpt --rms2sound_ckpt_dir ./dir/to/rms2sound/ckpt --output_dir ./output_dir
+   --epoch 500 --video2rms_ckpt_dir ./dir/to/video2rms/ckpt --rms2sound_ckpt_dir ./dir/to/rms2sound/ckpt \
+   --output_dir ./output_dir
 ```
 
 ```video_dir``` should look like this:
