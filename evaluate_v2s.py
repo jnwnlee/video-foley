@@ -1,4 +1,4 @@
-from typing import Union, List
+from typing import Union, List, Dict, Any
 from glob import glob
 import os
 import soundfile as sf
@@ -32,6 +32,29 @@ def crop_or_pad(waveform:torch.tensor, target_len:int) -> torch.tensor:
         return F.pad(waveform, (0, target_len - waveform.shape[1]), mode='constant', value=0)
     assert waveform.shape[1] == target_len, f"waveform.shape: {waveform.shape}"
     return waveform
+
+def load_state_dict_clap(checkpoint_path: str, map_location: str = "cpu", skip_params: bool = True) \
+    -> Dict[str, Any]:
+    checkpoint = torch.load(checkpoint_path, map_location=map_location)
+    if isinstance(checkpoint, dict) and "state_dict" in checkpoint:
+        state_dict = checkpoint["state_dict"]
+    else:
+        state_dict = checkpoint
+    if skip_params:
+        if next(iter(state_dict.items()))[0].startswith("module"):
+            state_dict = {k[7:]: v for k, v in state_dict.items()}
+    
+    return state_dict
+
+def load_pretrained_clap(checkpoint_path: str, model: torch.nn.Module) -> torch.nn.Module:
+    if not os.path.exists(checkpoint_path):
+        raise FileNotFoundError(f"checkpoint_path {checkpoint_path} does not exist")
+
+    print(f"Loading pretrained weights from {checkpoint_path}.")
+    ckpt = load_state_dict_clap(checkpoint_path, skip_params=True)
+    model.load_state_dict(ckpt)
+    model.eval()
+    return model
     
 def cos_similarity_audio(clap_model, waveform1, waveform2) -> torch.tensor:
     # waveform: [bs, t_steps]
@@ -59,6 +82,7 @@ def get_clap_score(prompt:Union[List[str], torch.Tensor, np.ndarray], generated:
         embed_mode="audio",
         amodel="HTSAT-base",
     ).to(device)
+    clap.model = load_pretrained_clap(clap_pretrained_path, clap.model)
 
     if isinstance(prompt, list):
         similarity = clap.cos_similarity(

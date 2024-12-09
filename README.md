@@ -83,7 +83,7 @@ dir/to/your/videos/
 3. Install [PyTorch](https://pytorch.org/get-started/previous-versions) and other dependencies.
    ```bash
    conda install pytorch==2.1.1 torchvision==0.16.1 torchaudio==2.1.1 pytorch-cuda=11.8 -c pytorch -c nvidia
-   conda install ffmpeg=6.1.0 x264 -c conda-forge
+   conda install ffmpeg=6.1.0 x264 -c conda-forge # this may take long
    pip install -r requirements.txt
    ```
 

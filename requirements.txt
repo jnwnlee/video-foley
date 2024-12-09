@@ -16,3 +16,7 @@ yacs==0.1.8
 moviepy==1.0.3
 pandas
 av
+# CLAP
+transformers==4.30.2 
+taming-transformers-rom1504==0.0.6 
+tokenizers==0.13.3
