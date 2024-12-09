@@ -101,15 +101,14 @@ if __name__ == '__main__':
     sr = args.audio_sample_rate
     fps = args.video_fps
     
-    # video_paths = glob(P.join(input_dir, "*_denoised.mp4"))
-    # video_paths.sort()
+    video_paths = glob(P.join(input_dir, "*_denoised.mp4"))
+    video_paths.sort()
 
-    # # Align Video and Audio
-    # with Pool(args.num_worker) as p:
-    #     for _ in tqdm(p.imap_unordered(partial(pipline_align, output_dir=preproc_dir, 
-    #                                            sr=sr, fps=fps, duration_target=duration_target), video_paths), 
-    #                   total=len(video_paths)):
-    #         pass
+    # Align Video and Audio
+    with Pool(args.num_worker) as p:
+        for _ in tqdm(p.imap_unordered(partial(pipline_align, output_dir=preproc_dir), video_paths), 
+                      total=len(video_paths)):
+            pass
 
     filelists = glob(P.join(preproc_dir, "filelists", "*.txt"))
     video_ids = []
