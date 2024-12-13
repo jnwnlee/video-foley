@@ -84,6 +84,7 @@ dir/to/your/videos/
    ```bash
    conda install pytorch==2.1.1 torchvision==0.16.1 torchaudio==2.1.1 pytorch-cuda=11.8 -c pytorch -c nvidia
    conda install ffmpeg=6.1.0 x264 -c conda-forge # this may take long
+   # sudo apt-get update -y && sudo apt-get install -y libgl1-mesa-glx # if you don't have libGL
    pip install -r requirements.txt
    ```
 
