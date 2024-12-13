@@ -53,9 +53,10 @@ if _C.train.onset_supervision: # BCE loss
 ### Data Config
 _C.data = CN()
 data_dir = '/mnt/GreatestHits'
-materials = os.listdir(os.path.join(data_dir, 'features'))
+materials = os.listdir(os.path.join(data_dir, 'features')) if os.isdir(os.path.join(data_dir, 'features')) else []
             # ['carpet', 'ceramic', 'cloth', 'dirt', 'drywall', 'glass', 'grass', 'gravel', 'leaf', 'metal', 
             #  'multiple', 'None', 'paper', 'plastic', 'plastic-bag', 'rock', 'tile', 'water', 'wood']
+if materials == []: print(f"Warning: data_dir {data_dir} seems empty (while loading config)")
 materials.sort()
 _C.data.training_files = [os.path.join(data_dir, f'filelists/{material}_train.txt') for material in materials]
 _C.data.test_files = [os.path.join(data_dir, f'filelists/{material}_test.txt') for material in materials]
