@@ -3,7 +3,7 @@ import time
 import os
 import numpy as np
 import pickle as pkl
-import torch.nn.parallel
+import torch
 from PIL import Image
 from torch.utils.data import Dataset
 import torch.optim
@@ -118,6 +118,7 @@ class TSNDataSet(Dataset):
 #     return baseout
 
 
+@torch.no_grad()
 def extract_bn_inception_feature(input_dir, output_dir, modality, test_list, input_size=224, 
                                  crop_fusion_type='avg', dropout=0.7, workers=4, flow_prefix='', device_id=0):
     net = TSN(modality,            
@@ -148,14 +149,12 @@ def extract_bn_inception_feature(input_dir, output_dir, modality, test_list, inp
     net.eval()
     for i, (data, video_path) in tqdm(enumerate(data_loader), total=len(data_loader)):
         try:
-            with torch.no_grad():
-                os.makedirs(output_dir, exist_ok=True)
-                ft_path = os.path.join(output_dir, video_path[0].split(os.sep)[-1]+".pkl")
-                length = 3 if modality == 'RGB' else 2
-                input_var = torch.autograd.Variable(data.view(-1, length, data.size(2), data.size(3)),
-                                                    volatile=True)
-                rst = np.squeeze(net(input_var).data.cpu().numpy().copy()) # shape: (n_frames, 1024->dim of last pooling layer in BN-Inception)
-                pkl.dump(rst, open(ft_path, "wb"))
+            os.makedirs(output_dir, exist_ok=True)
+            ft_path = os.path.join(output_dir, video_path[0].split(os.sep)[-1]+".pkl")
+            length = 3 if modality == 'RGB' else 2
+            input_var = torch.autograd.Variable(data.view(-1, length, data.size(2), data.size(3)))
+            rst = np.squeeze(net(input_var).data.cpu().numpy().copy()) # shape: (n_frames, 1024->dim of last pooling layer in BN-Inception)
+            pkl.dump(rst, open(ft_path, "wb"))
         except Exception as e:
             with open(os.path.join('./', f"error_{modality}_{'_'.join(ft_path.split('/')[-3:])}.txt"), "w") as f:
                 print(f"error: {e} video_path: {video_path} ft_path: {ft_path}")
