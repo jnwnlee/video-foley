@@ -37,7 +37,7 @@ def get_loss_values(model_output, targets, criterions: Dict[str, nn.Module], ave
         target_continuous = None
 
     for loss_type, criterion in criterions.items():
-        if loss_type in ["CE", "CE_GLS"]: # outputs mean value within the batch
+        if loss_type in ["CE", "CE_GLS"] or loss_type.startswith("ACC+-"): # outputs mean value within the batch
             loss = criterion(model_output, target)
         elif loss_type in ["MSE", "MAE"]: # outputs mean value within the batch
             if target_continuous is not None: # test phase
@@ -78,6 +78,59 @@ def get_loss_values(model_output, targets, criterions: Dict[str, nn.Module], ave
     
     return reduced_losses
 
+
+def tolerant_accuracy(predictions: torch.Tensor, targets: torch.Tensor, tolerance: int = 1) -> torch.Tensor:
+    """
+    Calculate accuracy with tolerance for adjacent classes.
+
+    Args:
+        predictions (torch.Tensor): Tensor of shape (batch, num_classes, num_length).
+                                   Predicted logits or probabilities.
+        targets (torch.Tensor): Tensor of shape (batch, num_length).
+                                Ground truth class indices.
+        tolerance (int): Tolerance window size for adjacent classes.
+
+    Returns:
+        torch.Tensor: Accuracy with tolerance.
+
+    Raises:
+        ValueError: If inputs have incompatible shapes or invalid values.
+    """
+    # Validate inputs
+    if predictions.ndim != 3:
+        raise ValueError("predictions must be a 3D tensor of shape (batch, num_classes, num_length).")
+    if targets.ndim != 2:
+        raise ValueError("targets must be a 2D tensor of shape (batch, num_length).")
+    if predictions.size(0) != targets.size(0):
+        raise ValueError("Batch size of predictions and targets must match.")
+    if predictions.size(2) != targets.size(1):
+        raise ValueError("The sequence length of predictions and targets must match.")
+    if tolerance < 0:
+        raise ValueError("Tolerance must be a non-negative integer.")
+
+    # Get the predicted classes (argmax along num_classes axis)
+    pred_classes = torch.argmax(predictions, dim=1)  # Shape: (batch, num_length)
+
+    batch_size, num_length = targets.shape
+    num_classes = predictions.size(1)
+
+    # Create a range tensor to handle tolerance in a vectorized way
+    range_tensor = torch.arange(-tolerance, tolerance + 1, device=targets.device).view(1, -1, 1)  # Shape: (1, 2 * tolerance + 1, 1)
+
+    # Expand targets to match the range_tensor for broadcasting
+    expanded_targets = targets.unsqueeze(1) + range_tensor  # Shape: (batch, 2 * tolerance + 1, num_length)
+    expanded_targets = torch.clamp(expanded_targets, min=0, max=num_classes - 1)  # Clamp to valid class range
+
+    # Check if pred_classes match any of the valid expanded targets
+    valid_matches = (pred_classes.unsqueeze(1) == expanded_targets).any(dim=1)  # Shape: (batch, num_length)
+
+    # Calculate accuracy
+    accurate_count = valid_matches.sum().float()
+    total_count = targets.numel()
+
+    return accurate_count / total_count
+
+
 def empty_onehot(target: torch.Tensor, num_classes: int):
     # target_size = (batch, dim1, dim2, ...)
     # one_hot size = (batch, dim1, dim2, ..., num_classes)
@@ -99,6 +152,7 @@ def to_onehot(target: torch.Tensor, num_classes: int, src_onehot: torch.Tensor =
         one_hot = one_hot.scatter_(
             dim=last_dim, index=torch.unsqueeze(target, dim=last_dim), value=1.0)
     return one_hot
+
 
 class CrossEntropyLossWithGaussianSmoothedLabels(nn.Module):
     """
@@ -189,9 +243,10 @@ class RMSLoss(nn.Module):
     def __init__(self, loss_config: Dict = {"type":"MSE"}, rms_discretize=False, rms_mu=255, rms_num_bins=16, rms_min=0.01):
         super(RMSLoss, self).__init__()
         assert 'type' in loss_config.keys(), "Loss type not found in loss_config."
-        self.LOSS_TYPES = ["MSE", "MAE", "CE", "CE_GLS", "ACC", "PREC", "RECALL", "F1", "PRAUC", "ROCAUC", "ACC@3", "ACC@5", "ACC@10"]
+        self.LOSS_TYPES = ["MSE", "MAE", "CE", "CE_GLS", "ACC", "PREC", "RECALL", "F1", "PRAUC", "ROCAUC"] # ACC@k, ACC+-t excluded
         self.loss_type = loss_config['type']
-        if self.loss_type not in self.LOSS_TYPES:
+        if self.loss_type not in self.LOSS_TYPES and not self.loss_type.startswith("ACC@")\
+            and not self.loss_type.startswith("ACC+-"):
             raise ValueError(f"Invalid loss type: {self.loss_type}. Should be one of {self.LOSS_TYPES}.")
         
         if self.loss_type == "CE_GLS":
@@ -232,21 +287,21 @@ class RMSLoss(nn.Module):
                                                                  blur_range=self.loss_config['gls_blur_range'])
         elif self.loss_type == "ACC":
             loss_fn = partial(multiclass_accuracy, average=average, num_classes=self.rms_num_bins)
-        elif self.loss_type == "ACC@3":
+        elif self.loss_type.startswith("ACC@"):
+            try:
+                k = int(self.loss_type.split('@')[1])
+            except ValueError:
+                raise ValueError(f"Invalid format for top-k accuracy: {self.loss_type}. Should be 'ACC@k' where k is an integer.")
             _loss_value = top_k_accuracy_score(rms_target.detach().cpu().numpy(),
-                                        rms_out.detach().cpu().numpy(), 
-                                        k=3, labels=list(range(self.rms_num_bins)))
+                                               rms_out.detach().cpu().numpy(), 
+                                               k=k, labels=list(range(self.rms_num_bins)))
             return torch.tensor(_loss_value)
-        elif self.loss_type == "ACC@5":
-            _loss_value = top_k_accuracy_score(rms_target.detach().cpu().numpy(),
-                                        rms_out.detach().cpu().numpy(), 
-                                        k=5, labels=list(range(self.rms_num_bins)))
-            return torch.tensor(_loss_value)
-        elif self.loss_type == "ACC@10":
-            _loss_value = top_k_accuracy_score(rms_target.detach().cpu().numpy(), 
-                                        rms_out.detach().cpu().numpy(), 
-                                        k=10, labels=list(range(self.rms_num_bins)))
-            return torch.tensor(_loss_value)
+        elif self.loss_type.startswith("ACC+-"):
+            try:
+                tolerance = int(self.loss_type.split('+-')[1])
+            except ValueError:
+                raise ValueError(f"Invalid format for tolerant accuracy: {self.loss_type}. Should be 'ACC+-tolerance' where tolerance is a int.")
+            loss_fn = partial(tolerant_accuracy, tolerance=tolerance)
         elif self.loss_type == "PREC":
             loss_fn = partial(multiclass_precision, average=average, num_classes=self.rms_num_bins)
         elif self.loss_type == "RECALL":

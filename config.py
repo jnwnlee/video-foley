@@ -11,7 +11,7 @@ _C.log.save_dir = 'ckpt/rms_64_GLS_2'
 _C.log.exclude_dirs = ['ckpt', 'data', 'opencv-python']
 _C.log.logger = ['tensorboard', 'wandb']
 _C.log.loss = CN()
-_C.log.loss.types = ["CE_GLS", "MAE", "ACC", "ACC@5", "ACC@10"] # MAE == E-L1
+_C.log.loss.types = ["CE_GLS", "MAE", "ACC", "ACC+-2", "ACC+-5", "ACC+-8"] # MAE == E-L1
 if "CE_GLS" in _C.log.loss.types:
     _C.log.loss.gls_num_classes = 64
     _C.log.loss.gls_blur_range = 2
@@ -53,7 +53,7 @@ if _C.train.onset_supervision: # BCE loss
 ### Data Config
 _C.data = CN()
 data_dir = '/mnt/GreatestHits'
-materials = os.listdir(os.path.join(data_dir, 'features')) if os.isdir(os.path.join(data_dir, 'features')) else []
+materials = os.listdir(os.path.join(data_dir, 'features')) if os.path.isdir(os.path.join(data_dir, 'features')) else []
             # ['carpet', 'ceramic', 'cloth', 'dirt', 'drywall', 'glass', 'grass', 'gravel', 'leaf', 'metal', 
             #  'multiple', 'None', 'paper', 'plastic', 'plastic-bag', 'rock', 'tile', 'water', 'wood']
 if materials == []: print(f"Warning: data_dir {data_dir} seems empty (while loading config)")
