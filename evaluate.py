@@ -107,7 +107,9 @@ def evaluate(epoch:int = 500, ckpt_dir:str = '', config:CN=None, drop_correct_0:
                 continue
                 
             _reduced_losses = get_loss_values(model.pred_rms, model_gt, criterions,
-                                              average=average if average != 'macro' else None)
+                                              average=average if average != 'macro' else None,
+                                              model_output_onset=model.pred_onset if config.train.onset_supervision else None,
+                                              targets_onset=model.gt_onset if config.train.onset_supervision else None)
             if idx == 0:
                 print(_reduced_losses)
             nan_indices = []
