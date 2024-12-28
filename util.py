@@ -30,38 +30,40 @@ def set_seed(seed: int) -> None:
 
 
 def load_config(config_path: str) -> CN:
+    # make a copy of config
+    result_config = config.clone()
     with open(config_path, 'r') as f:
         yaml_cfg = yaml.safe_load(f)
-        # if log.loss.gls_num_classes exists, make it also in config
-        if yaml_cfg.get('log', {}).get('loss', {}).get('gls_num_classes', None) is not None:
-            config.log.loss.gls_num_classes = yaml_cfg['log']['loss']['gls_num_classes']
-        if yaml_cfg.get('log', {}).get('loss', {}).get('gls_blur_range', None) is not None:
-            config.log.loss.gls_blur_range = yaml_cfg['log']['loss']['gls_blur_range']
-        if yaml_cfg.get('train', {}).get('loss', {}).get('gls_num_classes', None) is not None:
-            config.train.loss.gls_num_classes = yaml_cfg['train']['loss']['gls_num_classes']
-        if yaml_cfg.get('train', {}).get('loss', {}).get('gls_blur_range', None) is not None:
-            config.train.loss.gls_blur_range = yaml_cfg['train']['loss']['gls_blur_range']
-        # if data.onset_supervision doesn't exists, make it False in config
-        if yaml_cfg.get('train', {}).get('onset_supervision', None) is None:
-            assert yaml_cfg.get('data', {}).get('onset_supervision', None) is None, \
-                "Mismatch between train.onset_supervision and data.onset_supervision: "\
-                + f"{yaml_cfg.get('train', {}).get('onset_supervision', None)}"\
-                + f"{yaml_cfg.get('data', {}).get('onset_supervision', None)}"
-            config.train.onset_supervision = False
-            config.data.onset_supervision = False
-        elif yaml_cfg.get('train', {}).get('onset_supervision', None) is True:
-            assert yaml_cfg.get('data', {}).get('onset_supervision', None) is True, \
-                "Mismatch between train.onset_supervision and data.onset_supervision: "\
-                + f"{yaml_cfg.get('train', {}).get('onset_supervision', None)}"\
-                + f"{yaml_cfg.get('data', {}).get('onset_supervision', None)}"
-            config.train.onset_supervision = yaml_cfg['train']['onset_supervision']
-            config.train.onset_loss_lambda = yaml_cfg['train']['onset_loss_lambda']
-            config.data.onset_supervision = yaml_cfg['train']['onset_supervision']
-            config.data.onset_annotation_dir = yaml_cfg['data']['onset_annotation_dir']
-            config.data.onset_tolerance = yaml_cfg['data']['onset_tolerance']
+    # if log.loss.gls_num_classes exists, make it also in config
+    if yaml_cfg.get('log', {}).get('loss', {}).get('gls_num_classes', None) is not None:
+        result_config.log.loss.gls_num_classes = yaml_cfg['log']['loss']['gls_num_classes']
+    if yaml_cfg.get('log', {}).get('loss', {}).get('gls_blur_range', None) is not None:
+        result_config.log.loss.gls_blur_range = yaml_cfg['log']['loss']['gls_blur_range']
+    if yaml_cfg.get('train', {}).get('loss', {}).get('gls_num_classes', None) is not None:
+        result_config.train.loss.gls_num_classes = yaml_cfg['train']['loss']['gls_num_classes']
+    if yaml_cfg.get('train', {}).get('loss', {}).get('gls_blur_range', None) is not None:
+        result_config.train.loss.gls_blur_range = yaml_cfg['train']['loss']['gls_blur_range']
+    # if data.onset_supervision doesn't exists, make it False in config
+    if yaml_cfg.get('train', {}).get('onset_supervision', None) is None:
+        assert yaml_cfg.get('data', {}).get('onset_supervision', None) is None, \
+            "Mismatch between train.onset_supervision and data.onset_supervision: "\
+            + f"{yaml_cfg.get('train', {}).get('onset_supervision', None)}"\
+            + f"{yaml_cfg.get('data', {}).get('onset_supervision', None)}"
+        result_config.train.onset_supervision = False
+        result_config.data.onset_supervision = False
+    elif yaml_cfg.get('train', {}).get('onset_supervision', None) is True:
+        assert yaml_cfg.get('data', {}).get('onset_supervision', None) is True, \
+            "Mismatch between train.onset_supervision and data.onset_supervision: "\
+            + f"{yaml_cfg.get('train', {}).get('onset_supervision', None)}"\
+            + f"{yaml_cfg.get('data', {}).get('onset_supervision', None)}"
+        result_config.train.onset_supervision = yaml_cfg['train']['onset_supervision']
+        result_config.train.onset_loss_lambda = yaml_cfg['train']['onset_loss_lambda']
+        result_config.data.onset_supervision = yaml_cfg['train']['onset_supervision']
+        result_config.data.onset_annotation_dir = yaml_cfg['data']['onset_annotation_dir']
+        result_config.data.onset_tolerance = yaml_cfg['data']['onset_tolerance']
         
-    config.merge_from_file(config_path)
-    return config
+    result_config.merge_from_file(config_path)
+    return result_config
 
 
 def load_model(epoch:int, ckpt_dir:str, config:CN) -> Video2Sound:

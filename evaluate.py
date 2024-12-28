@@ -13,6 +13,7 @@ from yacs.config import CfgNode as CN
 from config import _C as config
 from criterion import get_loss_values
 from util import load_config, load_model, get_criterions, prepare_dataloaders, set_seed
+from data_utils import RMS
     
 
 @torch.no_grad
@@ -60,22 +61,52 @@ def evaluate(epoch:int = 500, ckpt_dir:str = '', config:CN=None, drop_correct_0:
             if drop_correct_0:
                 # if pred_rms class and gt_rms class are both 0, skip that index
                 # get indices where pred_rms class 0
+                if not config.data.rms_discretize:
+                    model_device = model.pred_rms.device
+                    mu_bins = RMS.get_mu_bins(config.data.rms_mu, config.data.rms_num_bins, config.data.rms_min)
+                    mu_bins = mu_bins.to(model_device)
+                    # make as if the prediction & gt is discretized
+                    pred_rms_discretized = torch.zeros((model.pred_rms.shape[0], mu_bins.shape[0], model.pred_rms.shape[1]), 
+                                                       device=model_device)
+                    model.gt_rms_continuous = model.gt_rms.clone()
+                    for i in range(model.pred_rms.shape[0]):
+                        # make RMS.discretize_rms(model.pred_rms[i], mu_bins).long() (axis 1) values to 1
+                        assert RMS.discretize_rms(model.pred_rms[i], mu_bins).long().shape[0] == model.pred_rms.shape[1]
+                        indices = RMS.discretize_rms(model.pred_rms[i], mu_bins).long() - 1
+                        pred_rms_discretized[i, indices, torch.arange(indices.shape[0])] = 1
+                        model.gt_rms[i] = RMS.discretize_rms(model.gt_rms[i], mu_bins).long()
+                    model.pred_rms = pred_rms_discretized
                 pred_0_indices = torch.where(model.pred_rms.argmax(dim=1) == 0)[1]
                 gt_0_indices = torch.where(model.gt_rms == 0)[1]
+                    
                 # find intersection
                 drop_indices = pred_0_indices[torch.where(torch.isin(pred_0_indices, gt_0_indices))]
-                drop_mask = torch.ones(model.pred_rms.shape[2], dtype=torch.bool)
+                drop_mask = torch.ones(model.pred_rms.shape[-1], dtype=torch.bool)
                 drop_mask[drop_indices] = False
                 if len(drop_indices) > 0:
                     # drop indices (axis 2 of model.pred_rms, axis 1 of model.gt_rms)
-                    model.pred_rms = model.pred_rms[:, :, drop_mask]
                     model.gt_rms = model.gt_rms[:, drop_mask]
+                    model.pred_rms = model.pred_rms[:, :, drop_mask]
                     model.gt_rms_continuous = model.gt_rms_continuous[:, drop_mask]
-            assert model.pred_rms.shape[2] == model.gt_rms.shape[1] == model.gt_rms_continuous.shape[1]
-            if model.pred_rms.shape[2] == 0:
+            
+            if not config.data.rms_discretize and not drop_correct_0:
+                assert model.pred_rms.shape[1] == model.gt_rms.shape[1]
+                model_device = model.pred_rms.device
+                mu_bins = RMS.get_mu_bins(config.data.rms_mu, config.data.rms_num_bins, config.data.rms_min)
+                mu_bins = mu_bins.to(model_device)
+                for i in range(model.pred_rms.shape[0]):
+                    model.pred_rms[i] = RMS.undiscretize_rms(
+                        RMS.discretize_rms(torch.tensor(model.pred_rms[i]), mu_bins).long(), mu_bins
+                        )
+                model_gt = model.gt_rms
+            else:
+                assert model.pred_rms.shape[2] == model.gt_rms.shape[1] == model.gt_rms_continuous.shape[1]
+                model_gt = (model.gt_rms, model.gt_rms_continuous)
+                
+            if model.pred_rms.shape[-1] == 0:
                 continue
                 
-            _reduced_losses = get_loss_values(model.pred_rms, (model.gt_rms, model.gt_rms_continuous), criterions,
+            _reduced_losses = get_loss_values(model.pred_rms, model_gt, criterions,
                                               average=average if average != 'macro' else None)
             if idx == 0:
                 print(_reduced_losses)
