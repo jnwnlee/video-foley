@@ -26,9 +26,7 @@ echo $soundlist  # Print the list of sound types
 for soundtype in $soundlist 
 do
 
-    # Generating RGB frame and optical flow. This script uses CPU to calculate optical flow,
-    # which may take a very long time. We strongly recommend you to refer to TSN repository 
-    # (https://github.com/yjxiong/temporal-segment-networks) to speed up this process.
+    # Generating RGB frame and optical flow.
     CUDA_VISIBLE_DEVICES=0 python preprocess/extract_rgb_flow_raft.py \
     -i ${directory}/features/${soundtype}/videos_10s_30fps \
     -o ${directory}/features/${soundtype}/OF_10s_30fps \
