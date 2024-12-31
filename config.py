@@ -58,8 +58,8 @@ materials = os.listdir(os.path.join(data_dir, 'features')) if os.path.isdir(os.p
             #  'multiple', 'None', 'paper', 'plastic', 'plastic-bag', 'rock', 'tile', 'water', 'wood']
 if materials == []: print(f"Warning: data_dir {data_dir} seems empty (while loading config)")
 materials.sort()
-_C.data.training_files = [os.path.join(data_dir, f'filelists/{material}_train.txt') for material in materials]
-_C.data.test_files = [os.path.join(data_dir, f'filelists/{material}_test.txt') for material in materials]
+_C.data.training_files = [os.path.join(data_dir, f'features_preproc/filelists/{material}_train.txt') for material in materials]
+_C.data.test_files = [os.path.join(data_dir, f'features_preproc/filelists/{material}_test.txt') for material in materials]
 _C.data.rgb_feature_dirs = [os.path.join(data_dir, f"features/{material}/feature_rgb_bninception_dim1024_30fps") 
                             for material in materials]
 _C.data.flow_feature_dirs = [os.path.join(data_dir, f"features/{material}/feature_flow_bninception_dim1024_30fps") 
