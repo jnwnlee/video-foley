@@ -1,7 +1,9 @@
 # Video-Foley
 
-Official PyTorch implementation of "Video-Foley: Two-Stage Video-To-Sound Generation via Temporal Event Condition For Foley Sound".
+Official PyTorch implementation of "Video-Foley: Two-Stage Video-To-Sound Generation via Temporal Event Condition For Foley Sound". <br/>
+IEEE TASLP (Transactions on Audio, Speech and Language Processing) 2025. <br/>
 Keywords: Video-to-Audio Generation, Controllable Audio Generation, Multimodal Deep Learning.
+
 
 [![arXiv](https://img.shields.io/badge/arXiv-2408.11915-brightgreen.svg?style=flat-square)](https://arxiv.org/abs/2408.11915)  [![githubio](https://img.shields.io/badge/GitHub.io-Demo_page-blue?logo=Github&style=flat-square)](https://jnwnlee.github.io/video-foley-demo/)  [![Hugging Face](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Model-blue)](https://huggingface.co/jnwnlee/video-foley)
 
@@ -212,11 +214,12 @@ fadtk panns-wavegram-logmel path/to/ground_truth_audio path/to/generated_audio f
 # Citation
 ```bibtex
 @article{video-foley,
-          title={Video-Foley: Two-Stage Video-To-Sound Generation via Temporal Event Condition For Foley Sound},
-          author={Lee, Junwon and Im, Jaekwon and Kim, Dabin and Nam, Juhan},
-          journal={arXiv preprint arXiv:2408.11915},
-          year={2024}
-        }
+         title={Video-foley: Two-stage video-to-sound generation via temporal event condition for foley sound},
+         author={Lee, Junwon and Im, Jaekwon and Kim, Dabin and Nam, Juhan},
+         journal={IEEE Transactions on Audio, Speech and Language Processing},
+         year={2025},
+         publisher={IEEE}
+}
 ```
 
 
