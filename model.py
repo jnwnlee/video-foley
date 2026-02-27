@@ -233,6 +233,24 @@ class Video2Sound(nn.Module):
         if self.onset_supervision:
             self.pred_rms, self.pred_onset = self.pred_rms
 
+    def get_scheduler(self, optimizer, config):
+        def lambda_rule(epoch):
+            lr_l = 1.0 - max(0, epoch + 2 + config.epoch_count - config.niter) / float(config.epochs - config.niter + 1)
+            return lr_l
+
+        if config.lr_policy == 'plateau':
+            scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=config.weight_decay, 
+                                                    patience=config.niter, threshold=config.loss_threshold, 
+                                                    threshold_mode='rel', cooldown=0, min_lr=0, eps=1e-08)
+        elif config.lr_policy == 'step':
+            scheduler = lr_scheduler.StepLR(optimizer, step_size=config.niter, gamma=config.weight_decay)
+        else:
+            raise NotImplementedError('learning rate policy [%s] is not implemented', config.lr_policy)
+        return scheduler
+
+    def setup(self):
+        self.schedulers = [self.get_scheduler(optimizer, self.config.train) for optimizer in self.optimizers]
+    
     def load_checkpoint(self, checkpoint_path):
         for name in self.model_names:
             filepath = "{}_{}.pt".format(checkpoint_path, name)
@@ -253,6 +271,11 @@ class Video2Sound(nn.Module):
             for param_group in self.optimizers[index].param_groups:
                 param_group['lr'] = learning_rate
 
+    def update_learning_rate(self, val_loss):
+        for scheduler in self.schedulers:
+            scheduler.step(val_loss) if self.config.train.lr_policy == 'plateau' else scheduler.step()
+        lr = self.optimizers[0].param_groups[0]['lr']
+        print('learning rate = %.7f' % lr)
 
     def set_requires_grad(self, nets, requires_grad=False):
         if not isinstance(nets, list):
@@ -261,4 +284,23 @@ class Video2Sound(nn.Module):
             if net is not None:
                 for param in net.parameters():
                     param.requires_grad = requires_grad
+                    
+    def backward_RMS(self):
+        self.loss_RMS = self.RMSLoss(self.pred_rms, self.gt_rms)
+        if self.onset_supervision:
+            self.loss_RMS += self.onsetLoss_lambda * self.onsetLoss(self.pred_onset, self.gt_onset)
+        # for onset-only training           
+        # self.loss_RMS = self.onsetLoss_lambda * self.onsetLoss(self.pred_onset, self.gt_onset)
+        
+        self.loss_RMS.backward()
+
+    def optimize_parameters(self):
+        self.n_iter += 1
+        self.forward()
+
+        # update Video2RMS
+        self.set_requires_grad(self.Video2RMS, True)
+        self.optimizer_Video2RMS.zero_grad()
+        self.backward_RMS()
+        self.optimizer_Video2RMS.step()
     
